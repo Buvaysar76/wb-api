@@ -34,7 +34,7 @@ class DispatchApiImport extends Command
     public function handle(): void
     {
         $type = $this->option('type');
-        $dateFrom = $this->option('dateFrom') ?? now()->subDays(7)->format('Y-m-d');
+        $dateFrom = $this->option('dateFrom') ?? now()->subDays(1)->format('Y-m-d');
         $dateTo = $this->option('dateTo') ?? now()->format('Y-m-d');
 
         if (!$type) {
