@@ -19,14 +19,15 @@ class ImportApiPageJob implements ShouldQueue
     protected string $url;
     protected string $model;
     protected array $params;
-
+    protected int $accountId;
     protected int $maxRetries = 7;
 
-    public function __construct(string $url, string $model, array $params)
+    public function __construct(string $url, string $model, array $params, int $accountId)
     {
         $this->url = $url;
         $this->model = $model;
         $this->params = $params;
+        $this->accountId = $accountId;
     }
 
     /**
@@ -83,6 +84,7 @@ class ImportApiPageJob implements ShouldQueue
             try {
                 DB::transaction(fn() => $this->model::insert(
                     array_map(fn($item) => array_merge($item, [
+                        'account_id' => $this->accountId,
                         'created_at' => $currentTime,
                         'updated_at' => $currentTime,
                     ]), $chunk)
@@ -102,10 +104,10 @@ class ImportApiPageJob implements ShouldQueue
 
             Log::info("Отправляем следующую страницу {$this->params['page']}");
 
-            self::dispatch($this->url, $this->model, $this->params)
+            self::dispatch($this->url, $this->model, $this->params, $this->accountId)
                 ->delay(now()->addSeconds(1));
         } else {
-            Log::info("✅ Импорт завершён: {$this->model}");
+            Log::info("✅ Импорт завершён: {$this->model} для account_id={$this->accountId}");
         }
     }
 }
