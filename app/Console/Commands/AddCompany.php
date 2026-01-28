@@ -28,8 +28,12 @@ class AddCompany extends Command
     {
         $name = $this->argument('name');
 
-        $company = Company::create(['name' => $name]);
+        $company = Company::firstOrCreate(['name' => $name]);
 
-        $this->info("Компания создана. ID = {$company->id}");
+        if ($company->wasRecentlyCreated) {
+            $this->info("Компания создана. ID = {$company->id}");
+        } else {
+            $this->warn("Компания уже существует. ID = {$company->id}");
+        }
     }
 }

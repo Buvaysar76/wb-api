@@ -30,16 +30,22 @@ class AddAccount extends Command
         $companyId = $this->argument('company_id');
         $name = $this->argument('name');
 
-        if (!Company::find($companyId)) {
+        $company = Company::find($companyId);
+
+        if (!$company) {
             $this->error("Компания ID {$companyId} не найдена.");
             return;
         }
 
-        $account = Account::create([
+        $account = Account::firstOrCreate([
             'company_id' => $companyId,
             'name' => $name,
         ]);
 
-        $this->info("Аккаунт создан. ID = {$account->id}");
+        if ($account->wasRecentlyCreated) {
+            $this->info("Аккаунт создан. ID = {$account->id}");
+        } else {
+            $this->warn("Аккаунт уже существует у компании {$company->name}. ID = {$account->id}");
+        }
     }
 }
