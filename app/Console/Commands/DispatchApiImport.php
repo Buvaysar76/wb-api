@@ -29,6 +29,29 @@ class DispatchApiImport extends Command
 
     private const API_BASE_URL = 'http://109.73.206.144:6969/api';
 
+    private const IMPORT_TYPES = [
+        'stocks' => [
+            'endpoint' => '/stocks',
+            'model' => Stock::class,
+            'uses_dates' => false,
+        ],
+        'orders' => [
+            'endpoint' => '/orders',
+            'model' => Order::class,
+            'uses_dates' => true,
+        ],
+        'sales' => [
+            'endpoint' => '/sales',
+            'model' => Sale::class,
+            'uses_dates' => true,
+        ],
+        'incomes' => [
+            'endpoint' => '/incomes',
+            'model' => Income::class,
+            'uses_dates' => true,
+        ],
+    ];
+
     /**
      * Execute the console command.
      */
@@ -37,8 +60,8 @@ class DispatchApiImport extends Command
         $type = $this->option('type');
         $accountId = (int)$this->option('account');
 
-        if (!$type) {
-            $this->error('Не указан тип импорта. Допустимые значения: stocks, orders, sales, incomes');
+        if (!$type || !isset(self::IMPORT_TYPES[$type])) {
+            $this->error('Неизвестный тип импорта. Допустимые значения: stocks, orders, sales, incomes');
             return;
         }
 
@@ -54,78 +77,38 @@ class DispatchApiImport extends Command
             return;
         }
 
+        $config = self::IMPORT_TYPES[$type];
+        $modelClass = $config['model'];
+
         $dateFrom = $this->option('dateFrom');
-        $dateTo = $this->option('dateTo');
+        $dateTo   = $this->option('dateTo');
 
-        $hasUserDates = $dateFrom && $dateTo;
-
-        if (!$hasUserDates) {
-            $model = match ($type) {
-                'stocks' => Stock::class,
-                'orders' => Order::class,
-                'sales'  => Sale::class,
-                'incomes'=> Income::class,
-            };
-
-            $latest = $model::where('account_id', $accountId)->max('date');
+        if ($config['uses_dates'] && (!$dateFrom || !$dateTo)) {
+            $latest = $modelClass::where('account_id', $accountId)->max('date');
 
             $dateFrom = $latest ? Carbon::parse($latest)->format('Y-m-d') : now()->subDays(3)->format('Y-m-d');
             $dateTo = now()->format('Y-m-d');
         }
 
-        match ($type) {
-            'stocks' => $this->dispatchStocks($token, $accountId),
-            'orders' => $this->dispatchOrders($token, $accountId, $dateFrom, $dateTo),
-            'sales' => $this->dispatchSales($token, $accountId, $dateFrom, $dateTo),
-            'incomes' => $this->dispatchIncomes($token, $accountId, $dateFrom, $dateTo),
-            default => $this->error('Неизвестный тип импорта. Допустимые значения: stocks, orders, sales, incomes'),
-        };
+        $params = [];
 
-        $this->info("Импорт '$type' для account_id={$accountId} успешно отправлен в очередь.");
-    }
+        if ($config['uses_dates']) {
+            $params['dateFrom'] = $dateFrom;
+            $params['dateTo']   = $dateTo;
+        } else {
+            // stocks
+            $params['dateFrom'] = now()->subDay()->format('Y-m-d');
+        }
 
-    private function dispatchStocks(string $token, int $accountId): void
-    {
         $this->fetchApiData(
-            self::API_BASE_URL . '/stocks',
-            Stock::class,
+            self::API_BASE_URL . $config['endpoint'],
+            $modelClass,
             $token,
             $accountId,
-            ['dateFrom' => now()->format('Y-m-d')]
+            $params
         );
-    }
 
-    private function dispatchOrders(string $token, int $accountId, string $dateFrom, string $dateTo): void
-    {
-        $this->fetchApiData(
-            self::API_BASE_URL . '/orders',
-            Order::class,
-            $token,
-            $accountId,
-            ['dateFrom' => $dateFrom, 'dateTo' => $dateTo]
-        );
-    }
-
-    private function dispatchSales(string $token, int $accountId, string $dateFrom, string $dateTo): void
-    {
-        $this->fetchApiData(
-            self::API_BASE_URL . '/sales',
-            Sale::class,
-            $token,
-            $accountId,
-            ['dateFrom' => $dateFrom, 'dateTo' => $dateTo]
-        );
-    }
-
-    private function dispatchIncomes(string $token, int $accountId, string $dateFrom, string $dateTo): void
-    {
-        $this->fetchApiData(
-            self::API_BASE_URL . '/incomes',
-            Income::class,
-            $token,
-            $accountId,
-            ['dateFrom' => $dateFrom, 'dateTo' => $dateTo]
-        );
+        $this->info("Импорт '{$type}' для account_id={$accountId} успешно отправлен в очередь.");
     }
 
     private function fetchApiData(string $url, string $modelClass, string $token, int $accountId, array $extraParams = []): void
