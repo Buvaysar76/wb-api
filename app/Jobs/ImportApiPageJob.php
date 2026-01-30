@@ -82,13 +82,26 @@ class ImportApiPageJob implements ShouldQueue
 
         foreach ($dataChunks as $chunk) {
             try {
-                DB::transaction(fn() => $this->model::insert(
-                    array_map(fn($item) => array_merge($item, [
-                        'account_id' => $this->accountId,
-                        'created_at' => $currentTime,
-                        'updated_at' => $currentTime,
-                    ]), $chunk)
-                ));
+                $prepared = array_map(fn($item) => array_merge($item, [
+                    'account_id' => $this->accountId,
+                    'created_at' => $currentTime,
+                    'updated_at' => $currentTime,
+                ]), $chunk);
+
+                $uniqueMap = [
+                    \App\Models\Order::class  => ['account_id', 'odid'],
+                    \App\Models\Sale::class   => ['account_id', 'sale_id'],
+                    \App\Models\Income::class => ['account_id', 'income_id'],
+                    \App\Models\Stock::class  => ['account_id', 'date', 'warehouse_name', 'barcode', 'nm_id'],
+                ];
+
+                $uniqueBy = $uniqueMap[$this->model];
+
+                $updateColumns = array_diff(array_keys($prepared[0]), ['id', 'created_at']);
+
+                DB::transaction(function () use ($prepared, $uniqueBy, $updateColumns) {
+                    $this->model::upsert($prepared, $uniqueBy, $updateColumns);
+                });
             } catch (Exception $e) {
                 Log::error("Ошибка вставки данных: {$e->getMessage()}");
             }
