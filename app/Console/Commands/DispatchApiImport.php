@@ -27,6 +27,8 @@ class DispatchApiImport extends Command
 
     protected $description = 'Import data from API';
 
+    private const API_BASE_URL = 'http://109.73.206.144:6969/api';
+
     /**
      * Execute the console command.
      */
@@ -85,7 +87,7 @@ class DispatchApiImport extends Command
     private function dispatchStocks(string $token, int $accountId): void
     {
         $this->fetchApiData(
-            'http://109.73.206.144:6969/api/stocks',
+            self::API_BASE_URL . '/stocks',
             Stock::class,
             $token,
             $accountId,
@@ -96,7 +98,7 @@ class DispatchApiImport extends Command
     private function dispatchOrders(string $token, int $accountId, string $dateFrom, string $dateTo): void
     {
         $this->fetchApiData(
-            'http://109.73.206.144:6969/api/orders',
+            self::API_BASE_URL . '/orders',
             Order::class,
             $token,
             $accountId,
@@ -107,7 +109,7 @@ class DispatchApiImport extends Command
     private function dispatchSales(string $token, int $accountId, string $dateFrom, string $dateTo): void
     {
         $this->fetchApiData(
-            'http://109.73.206.144:6969/api/sales',
+            self::API_BASE_URL . '/sales',
             Sale::class,
             $token,
             $accountId,
@@ -118,7 +120,7 @@ class DispatchApiImport extends Command
     private function dispatchIncomes(string $token, int $accountId, string $dateFrom, string $dateTo): void
     {
         $this->fetchApiData(
-            'http://109.73.206.144:6969/api/incomes',
+            self::API_BASE_URL . '/incomes',
             Income::class,
             $token,
             $accountId,
