@@ -80,22 +80,36 @@ class ImportApiPageJob implements ShouldQueue
         $dataChunks = array_chunk($data, 250);
         $currentTime = now()->toDateTimeString();
 
+        $uniqueMap = [
+            \App\Models\Order::class  => ['account_id', 'odid'],
+            \App\Models\Sale::class   => ['account_id', 'sale_id'],
+            \App\Models\Income::class => ['account_id', 'income_id'],
+            \App\Models\Stock::class  => ['account_id', 'date', 'warehouse_name', 'barcode', 'nm_id'],
+        ];
+
+        $uniqueBy = $uniqueMap[$this->model];
+
         foreach ($dataChunks as $chunk) {
             try {
-                $prepared = array_map(fn($item) => array_merge($item, [
-                    'account_id' => $this->accountId,
-                    'created_at' => $currentTime,
-                    'updated_at' => $currentTime,
-                ]), $chunk);
+                $prepared = [];
 
-                $uniqueMap = [
-                    \App\Models\Order::class  => ['account_id', 'odid'],
-                    \App\Models\Sale::class   => ['account_id', 'sale_id'],
-                    \App\Models\Income::class => ['account_id', 'income_id'],
-                    \App\Models\Stock::class  => ['account_id', 'date', 'warehouse_name', 'barcode', 'nm_id'],
-                ];
+                foreach ($chunk as $item) {
+                    $missing = array_filter($uniqueBy, fn($field) => !isset($item[$field]) && $field !== 'account_id');
+                    if (!empty($missing)) {
+                        Log::warning("Пропущено обязательное поле(я): " . implode(', ', $missing) . ". Данные: " . json_encode($item, JSON_THROW_ON_ERROR));
+                        continue;
+                    }
 
-                $uniqueBy = $uniqueMap[$this->model];
+                    $item['account_id'] = $this->accountId;
+                    $item['created_at'] = $currentTime;
+                    $item['updated_at'] = $currentTime;
+
+                    $prepared[] = $item;
+                }
+
+                if (empty($prepared)) {
+                    continue;
+                }
 
                 $updateColumns = array_diff(array_keys($prepared[0]), ['id', 'created_at']);
 
