@@ -97,7 +97,7 @@ class DispatchApiImport extends Command
             $params['dateTo']   = $dateTo;
         } else {
             // stocks
-            $params['dateFrom'] = now()->subDay()->format('Y-m-d');
+            $params['dateFrom'] = now()->format('Y-m-d');
         }
 
         $this->fetchApiData(
